@@ -60,9 +60,14 @@ class FormLoginAuthenticator extends AbstractFormLoginAuthenticator
 
 	public function onAuthenticationSuccess(Request $request, TokenInterface $token, $providerKey)
 	{
-		$url = $this->router->generate('welcome');
+		if($token->getRoles()[0]->getRole()=="ROLE_USER"){
+			$url = $this->router->generate('todo_list');
+			return new RedirectResponse($url);
+		}elseif($token->getRoles()[0]->getRole()=="ROLE_ADMIN"){
+			$url = $this->router->generate('todo_admin');
+			return new RedirectResponse($url);
+		}
 
-		return new RedirectResponse($url);
 	}
 
 	public function onAuthenticationFailure(Request $request, AuthenticationException $exception)
@@ -81,7 +86,7 @@ class FormLoginAuthenticator extends AbstractFormLoginAuthenticator
 
 	protected function getDefaultSuccessRedirectUrl()
 	{
-		return $this->router->generate('welcome');
+		return $this->router->generate('todo_list');
 	}
 
 	public function supportsRememberMe()

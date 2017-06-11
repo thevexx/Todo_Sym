@@ -27,15 +27,37 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-            <a class="navbar-brand" href="#">ToDo List</a>
+            <a class="navbar-brand" href="/">ToDo List</a>
+
         </div>
         <div id="navbar" class="collapse navbar-collapse">
+            {% if app.user != null %}
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="/logout">Logout</a></li>
+                </ul>
+            {% endif %}
+            {% if app.user == null %}
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="/register">Register</a></li>
+                </ul>
+            {% endif %}
+            {% if app.user != null %}
+            {% if app.user.role=='ROLE_USER' %}
             <ul class="nav navbar-nav">
                 <li><a href="/">Home</a></li>
                 <li><a href="/todos/create">Add todo</a></li>
-
             </ul>
+            {% endif %}
+            {% if app.user.role=='ROLE_ADMIN' %}
+                <ul class="nav navbar-nav">
+                    <li><a href="/admin">Users List</a></li>
+                    <li><a href="/admin/add">Add User</a></li>
+                </ul>
+            {% endif %}
+            {% endif %}
         </div><!--/.nav-collapse -->
+
+
     </div>
 </nav>
 

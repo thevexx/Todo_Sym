@@ -10,15 +10,19 @@ namespace AppBundle\Controller;
 
 use AppBundle\Entity\Todo;
 use AppBundle\Entity\User;
+use AppBundle\Form\UserType;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
+use Symfony\Component\Form\Extension\Core\Type\EmailType;
+use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
 
@@ -29,7 +33,7 @@ class TodoController extends Controller {
 	 */
 	public function listAction(Request $request)
 	{
-		$todos = $this->getDoctrine()->getRepository('AppBundle:Todo')->findAll();
+		$todos = $this->getDoctrine()->getRepository('AppBundle:Todo')->findBy(array('Userid'=>$this->get('security.token_storage')->getToken()->getUser()));
 		return $this->render('todo/index.html.twig',array('todos'=> $todos));
 	}
 
@@ -37,7 +41,7 @@ class TodoController extends Controller {
 	/**
 	 * @Route("/todos/create", name="todo_create")
 	 */
-	public function createAction(Request $request)
+	public function createAction(Request $request,UserInterface $user)
 	{
 		$todo = new Todo();
 		$form = $this->createFormBuilder($todo)
@@ -62,10 +66,10 @@ class TodoController extends Controller {
 			$todo->setDueDate($due_date);
 			$todo->setName($name);
 			$todo->setPriority($priority);
+			$todo->setUserid($this->get('security.token_storage')->getToken()->getUser());
 			$em = $this->getDoctrine()->getManager();
 			$em->persist($todo);
 			$em->flush();
-			$todos = $this->getDoctrine()->getRepository('AppBundle:Todo')->findAll();
 			$this->addFlash('notice','Todo Added');
 			return $this->redirectToRoute('todo_list');
 		}
@@ -101,10 +105,10 @@ class TodoController extends Controller {
 			$todo->setDueDate($due_date);
 			$todo->setName($name);
 			$todo->setPriority($priority);
+
 			$em = $this->getDoctrine()->getManager();
 			$em->persist($todo);
 			$em->flush();
-			$todos = $this->getDoctrine()->getRepository('AppBundle:Todo')->findAll();
 			$this->addFlash('notice','Todo Edited');
 			return $this->redirectToRoute('todo_list');
 		}
@@ -137,19 +141,31 @@ class TodoController extends Controller {
 	/**
 	 * @Route("/testuser", name="just_fake_user_add")
 	 */
-	public function registerAction(UserPasswordEncoderInterface $encoder)
+	public function registersAction(UserPasswordEncoderInterface $encoder)
 	{
-		// whatever *your* User object is
 		$user = new User();
-		$user->setUsername('test');
+		$user->setName('test');
 		$user->setEmail('test@test.com');
-		$plainPassword = 'test';
-		$encoded = $encoder->encodePassword($user, $plainPassword);
+		$user->setPlainPassword('test');
+		$encoder = $this->get('security.password_encoder');
+		$user->setRole('ROLE_ADMIN');
+		$password = $encoder->encodePassword($user, $user->getPlainPassword());
+		$user->setPassword($password);
 
-		$user->setPassword($encoded);
 		$em = $this->getDoctrine()->getManager();
 		$em->persist($user);
 		$em->flush();
+		// whatever *your* User object is
+//		$user = new User();
+//		$user->setUsername('test');
+//		$user->setEmail('test@test.com');
+//		$plainPassword = 'test';
+//		$encoded = $encoder->encodePassword($user, $plainPassword);
+//
+//		$user->setPassword($encoded);
+//		$em = $this->getDoctrine()->getManager();
+//		$em->persist($user);
+//		$em->flush();
 
 		return $this->redirectToRoute('todo_list');
 
@@ -161,18 +177,25 @@ class TodoController extends Controller {
 	 */
 	public function loginAction(Request $request, AuthenticationUtils $authUtils)
 	{
-		// get the login error if there is one
-		$error = $authUtils->getLastAuthenticationError();
+		$helper = $this->get('security.authentication_utils');
 
-		// last username entered by the user
-		$lastUsername = $authUtils->getLastUsername();
-
-		return $this->render('todo/login.html.twig', array(
-			'last_username' => $lastUsername,
-			'error'         => $error,
-		));
+		return $this->render(
+			'todo/login.html.twig',
+			array(
+				'last_username' => $helper->getLastUsername(),
+				'error'         => $helper->getLastAuthenticationError(),
+			)
+		);
 	}
 
+
+	/**
+	 * @Route("/login_check", name="security_login_check")
+	 */
+	public function loginCheckAction()
+	{
+
+	}
 
 	/**
 	 * @Route("/logout", name="logout")
@@ -182,4 +205,150 @@ class TodoController extends Controller {
 		// get the login error if there is one
 		return null;
 	}
+
+	/**
+	 * @Route("/admin", name="todo_admin")
+	 */
+	public function adminAction(Request $request, AuthenticationUtils $authUtils)
+	{
+		//get list of users, and display them to view their todos, modify their info, or delete them
+		$todos = $this->getDoctrine()->getRepository('AppBundle:User')->findAll();
+		return $this->render('todo/admin.html.twig',array('users'=> $todos));
+	}
+	/**
+	 * @Route("/admin/add", name="todo_admin_add")
+	 */
+	public function adminAddAction(Request $request, AuthenticationUtils $authUtils)
+	{
+		$user = new User();
+		$form = $this->createFormBuilder($user)
+		             ->add('name',TextType::class, array('attr'=>array('class'=>'form-control','style'=>'margin-bottom:15px')))
+		             ->add('role',ChoiceType::class, array('choices'=>array('User'=>'ROLE_USER','Admin'=>'ROLE_ADMIN'),'attr'=>array('class'=>'form-control','style'=>'margin-bottom:15px')))
+					 ->add('email',EmailType::class, array('attr'=>array('class'=>'form-control','style'=>'margin-bottom:15px')))
+		             ->add('password',PasswordType::class, array('attr'=>array('class'=>'form-control','style'=>'margin-bottom:15px')))
+		             ->getForm();
+		$form->handleRequest($request);
+		if($form->isSubmitted()&& $form->isValid()){
+			$name = $form['name']->getData();
+			$email = $form['email']->getData();
+			$password = $form['password']->getData();
+			$role = $form['role']->getData();
+			//if($password != ""){
+			$user->setPlainPassword($password);
+			$encoder = $this->get('security.password_encoder');
+			$password = $encoder->encodePassword($user, $user->getPlainPassword());
+			$user->setPassword($password);
+			//}
+			$user->setName($name);
+			$user->setEmail($email);
+			$user->setRole($role);
+
+			$em = $this->getDoctrine()->getManager();
+			$em->persist($user);
+			$em->flush();
+			$this->addFlash('notice','User Added');
+			return $this->redirectToRoute('todo_admin');
+		}
+		return $this->render('todo/adminAdd.html.twig',array('form'=>$form->createView()));
+	}
+
+	/**
+	 * @Route("/admin/delete/{id}", name="todo_admin_delete")
+	 */
+	public function deleteUserAction($id, Request $request)
+	{
+		$todos = $this->getDoctrine()->getRepository('AppBundle:Todo')->findBy(array('id'=>$id));
+		$user = $this->getDoctrine()->getRepository('AppBundle:User')->find($id);
+		$em = $this->getDoctrine()->getManager();
+		foreach ( $todos as $todo ) {$em->remove($todo);}
+		$em->remove($user);
+		$em->flush();
+		$this->addFlash('notice','User deleted');
+		return $this->redirectToRoute('todo_admin');
+	}
+
+
+	/**
+	 * @Route("/register", name="register")
+	 */
+	public function registerAction(Request $request)
+	{
+		// Create a new blank user and process the form
+		$user = new User();
+		$form = $this->createForm(UserType::class, $user);
+		$form->handleRequest($request);
+
+		if ($form->isSubmitted() && $form->isValid()) {
+			// Encode the new users password
+			$encoder = $this->get('security.password_encoder');
+			$password = $encoder->encodePassword($user, $user->getPlainPassword());
+			$user->setPassword($password);
+
+			// Set their role
+			$user->setRole('ROLE_USER');
+
+			// Save
+			$em = $this->getDoctrine()->getManager();
+			$em->persist($user);
+			$em->flush();
+
+			return $this->redirectToRoute('login');
+		}
+
+		return $this->render('todo/register.html.twig', [
+			'form' => $form->createView(),
+		]);
+	}
+
+
+	/**
+	 * @Route("/admin/edit/{id}", name="todo_admin_edit")
+	 */
+	public function editAdminAction($id, Request $request)
+	{
+		$user = $this->getDoctrine()->getRepository('AppBundle:User')->find($id);
+		$pass = $user->getPassword();
+		//die(var_dump($pass));
+
+		$form = $this->createFormBuilder($user)
+		             ->add('name',TextType::class, array('attr'=>array('class'=>'form-control','style'=>'margin-bottom:15px')))
+		             ->add('role',ChoiceType::class, array('choices'=>array('User'=>'ROLE_USER','Admin'=>'ROLE_ADMIN'),'attr'=>array('class'=>'form-control','style'=>'margin-bottom:15px')))
+		             ->add('email',EmailType::class, array('attr'=>array('class'=>'form-control','style'=>'margin-bottom:15px')))
+		             ->add('password',PasswordType::class, array('attr'=>array('class'=>'form-control','style'=>'margin-bottom:15px')))
+		             ->getForm();
+		$form->handleRequest($request);
+		//die(var_dump($id));
+		if($form->isSubmitted()&& $form->isValid()){
+			//die($pass);
+			//$userdb = $this->getDoctrine()->getRepository('AppBundle:User')->find($id);
+			//$pass = $userdb-> getPlainPassword();
+			//die($pass);
+			$name = $form['name']->getData();
+			$email = $form['email']->getData();
+			$password = $form['password']->getData();
+			$role = $form['role']->getData();
+
+			if($password != "PASS"){
+				$user->setPlainPassword($password);
+				$encoder = $this->get('security.password_encoder');
+				$password = $encoder->encodePassword($user, $user->getPlainPassword());
+				$user->setPassword($password);
+			}else{
+				$user->setPassword($pass);
+			}
+
+			$user->setName($name);
+			$user->setEmail($email);
+			$user->setRole($role);
+			//die($pass);
+			$em = $this->getDoctrine()->getManager();
+			$em->persist($user);
+			$em->flush();
+			$this->addFlash('notice','User Edited');
+			return $this->redirectToRoute('todo_admin');
+		}
+		return $this->render('todo/adminEdit.html.twig',array('form'=>$form->createView()));
+	}
+
+
 }

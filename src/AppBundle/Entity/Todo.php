@@ -12,6 +12,13 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class Todo
 {
+	/**
+	 * @ORM\ManyToOne(targetEntity="User", inversedBy="Todo")
+	 * @ORM\JoinColumn(name="Userid", referencedColumnName="id")
+	 */
+	private $Userid;
+
+
     /**
      * @var int
      *
@@ -217,5 +224,28 @@ class Todo
     {
         return $this->createDate;
     }
-}
 
+    /**
+     * Set userid
+     *
+     * @param \AppBundle\Entity\User $userid
+     *
+     * @return Todo
+     */
+    public function setUserid(\AppBundle\Entity\User $userid = null)
+    {
+        $this->Userid = $userid;
+
+        return $this;
+    }
+
+    /**
+     * Get userid
+     *
+     * @return \AppBundle\Entity\User
+     */
+    public function getUserid()
+    {
+        return $this->Userid;
+    }
+}

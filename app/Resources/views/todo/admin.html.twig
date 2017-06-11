@@ -1,0 +1,32 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+{% if app.user.role=='ROLE_ADMIN' %}
+    <h2 class="page-header">Users List</h2>
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>email</th>
+            <th>name</th>
+            <th>role</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {%  for user in users %}
+        <tr>
+            <td scope="row">{{ user.id }}</td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.name }}</td>
+            <td>{{ user.role }}</td>
+            <td>
+                <a href="/admin/active/{{ user.id }}" class="btn btn-success" >Active</a>
+                <a href="/admin/edit/{{ user.id }}" class="btn btn-default" >Edit</a>
+                <a href="/admin/delete/{{ user.id }}" class="btn btn-danger" >Delete</a>
+            </td>
+        </tr>
+        {%   endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}
